@@ -1,0 +1,25 @@
+v
+{% extends "base.html" %}
+{% block content %}
+
+<form method="post" action="{{ url_for('add_feed') }}">
+  <input type="text" name="url" placeholder="https://example.com/feed.xml" size="50">
+  <button type="submit">Add feed</button>
+</form>
+
+{% if error %}
+  <p>{{ error }}</p>
+{% endif %}
+
+<ul>
+  {% for feed in feeds %}
+   <li>
+      {{ feed.title }} ({{ feed.url }})
+      <form method="post" action="{{ url_for('unsubscribe', feed_id=feed.id) }}">
+        <button type="submit">Unsubscribe</button>
+      </form>
+    </li>
+  {% endfor %}
+</ul>
+
+{% endblock %}

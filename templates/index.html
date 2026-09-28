@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+
+<form method="post" action="{{ url_for('refresh') }}">
+  <button type="submit">Refresh all feeds</button>
+</form>
+
+<form method="get" action="{{ url_for('index') }}">
+  <select name="feed_id" onchange="this.form.submit()">
+    <option value="">All feeds</option>
+    {% for feed in feeds %}
+      <option value="{{ feed.id }}" {% if feed.id == selected_feed_id %}selected{% endif %}>
+        {{ feed.title }}
+      </option>
+    {% endfor %}
+  </select>
+  <label>
+    <input type="checkbox" name="show_read" value="1" onchange="this.form.submit()" {% if show_read %}checked{% endif %}>
+    show read
+  </label>
+</form>
+
+<hr>
+
+{% if not stories %}
+  <p>No stories. Add a feed on the Feeds page, then refresh.</p>
+{% endif %}
+
+<ul>
+  {% for story in stories %}
+    <li class="story-item">
+      {% if story.image_url %}
+        <img class="story-image" src="{{ story.image_url }}" alt="{{ story.title }}">
+      {% endif %}
+      <div class="story-copy">
+        <a href="{{ story.link }}" target="_blank">{{ story.title }}</a><br>
+        &mdash; {{ story.feed_title }} <br> {{ story.published | format_date }}
+        {% if not story.is_read %}
+          <form method="post" action="{{ url_for('mark_read', story_id=story.id) }}">
+            <button type="submit">Mark read</button>
+          </form>
+        {% endif %}
+        <br>
+        <small>{{ story.summary | striptags | truncate(200) }}</small>
+      </div>
+    </li>
+  {% endfor %}
+</ul>
+
+{% endblock %}

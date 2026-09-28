@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}RSS Reader{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav>
+    {% if g.user %}
+      <a href="{{ url_for('index') }}">Stories</a>
+      |
+      <a href="{{ url_for('list_feeds') }}">Feeds</a>
+      |
+      logged in as {{ g.user.username }}
+      <form method="post" action="{{ url_for('logout') }}">
+        <button type="submit">Log out</button>
+      </form>
+    {% else %}
+      <a href="{{ url_for('login') }}">Log in</a>
+      |
+      <a href="{{ url_for('signup') }}">Sign up</a>
+    {% endif %}
+  </nav>
+  <hr>
+  {% block content %}{% endblock %}
+</body>
+</html>
