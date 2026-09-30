@@ -1,36 +1,58 @@
-# Bare-bones RSS reader
+# RSS Reader
 
-The whole app in one loop: add feed URLs → fetch/parse them → store new stories (deduped) → list them → mark read → click through to the original site.
+A small Flask-based RSS reader with user accounts, shared feeds, and per-user read state. The flow is: add a feed URL, fetch and store stories once, show them to subscribed users, mark items read, and click through to the original site.
+
+## What it does
+
+- Sign up, log in, and log out
+- Subscribe to RSS/Atom feeds by URL
+- Share feeds and stories across users so the same feed is only fetched once
+- Refresh all feeds you subscribe to
+- Mark stories read per user
+- Unsubscribe without deleting the shared feed for everyone else
 
 ## Run it
 
-    pip install -r requirements.txt
-    python app.py
+1. Install dependencies:
 
-Then open http://localhost:5000. It creates `rss.db` (SQLite) on first run.
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-## Files
+2. Start the app:
 
-- `app.py` — Flask routes and the SQLite queries. This is the whole
-  "server."
-- `feeds.py` — the only file that talks to feedparser. Keep parsing logic here so routes stay dumb.
-- `schema.sql` — two tables: `feeds` and `stories`. `stories` is unique on
-  `(feed_id, guid)`, which is what makes re-fetching a feed idempotent.
-- `templates/` — plain Jinja templates, no `<style>`, no classes. Add your own CSS file and `<link>` it from `base.html` whenever you're ready.
+   ```bash
+   python app.py
+   ```
 
-## Things it deliberately doesn't do (yet)
+3. Open http://localhost:5000 in your browser.
 
-- No automatic background refresh — there's a "Refresh all feeds" button
-  that fetches synchronously. Wire up `APScheduler` or a cron hitting
-  `/refresh` when you want it automatic.
-- No folders/categories for feeds — `feeds` is a flat list.
-- No full-text search — SQLite's `LIKE` on `stories.title`/`summary` gets
-  you 80% of the way; `sqlite3`'s FTS5 extension gets you the rest.
-- No auth — single-user, local use. Add a login if you're deploying this somewhere shared.
-- No original-content extraction for truncated feeds — `summary` is
-  whatever the feed provides.
+The app creates `rss.db` automatically on first run.
 
-## Where to extend
+## Project files
 
-- `_store_entries()` in `app.py` is where every new story lands — a good hook point for tagging, filtering, or "train to hide" logic later.
-- `feeds.py` functions are pure and easy to unit test independent of Flask.
+- `app.py` — Flask routes, authentication flow, and SQLite queries
+- `auth.py` — login helpers, password hashing, and route protection
+- `feeds.py` — feed parsing helpers built around `feedparser`
+- `schema.sql` — database tables for users, feeds, subscriptions, stories, and read states
+- `templates/` — Jinja templates for login, signup, feeds, and story views
+- `static/` — CSS and front-end assets
+
+## Data model
+
+- `feeds` are shared across all users
+- `subscriptions` connect a user to a feed
+- `stories` are deduped by feed and GUID so refreshes are idempotent
+- `read_states` track whether a story has been read by a specific user
+
+## Notes
+
+- `app.py` runs with `debug=True` for local development only
+- Set `SECRET_KEY` in production so sessions survive restarts
+- Refreshing is synchronous, so a slow feed can slow down that request
+
+## Good places to extend
+
+- `_store_entries()` in `app.py` for tagging, filtering, or dedupe changes
+- `feeds.py` for parsing tweaks or feed normalization
+- `templates/` and `static/` for UI improvements

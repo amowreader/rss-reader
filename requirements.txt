@@ -1,2 +1,3 @@
 flask
-feedparserpython-dateutil
+feedparser
+python-dateutil

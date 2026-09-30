@@ -1,18 +1,12 @@
 """
 Bare-bones multi-user RSS aggregator.
 
-Core loop, same as the single-user version, with one addition: feeds and
-stories are shared across everyone (so the same URL is only ever fetched
-once), and what's per-user is the *subscription* and the *read state*.
+Core loop, same as the single-user version, with one addition: feeds and stories are shared across everyone (so the same URL is only ever fetched once), and what's per-user is the *subscription* and the *read state*.
 
   1. Sign up / log in
-  2. Add a feed URL -> subscribes you to it, fetching + creating the feed
-     row if nobody's added it yet
-  3. Refresh -> re-fetches feeds you're subscribed to, stores new stories
-     (deduped by guid), shared with anyone else subscribed to that feed
+  2. Add a feed URL -> subscribes you to it, fetching + creating the feed row if nobody's added it yet
+  3. Refresh -> re-fetches feeds you're subscribed to, stores new stories  (deduped by guid), shared with anyone else subscribed to that feed
   4. List your stories, mark read (per-user), click through to the original
-
-No CSS, no JS framework, no background scheduler.
 """
 
 import datetime
