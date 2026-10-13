@@ -17,7 +17,8 @@ body {
   padding: 14px;
   background: var(--bg);
   color: var(--text);
-  font-family: "Segoe UI", Tahoma, Verdana, sans-serif;
+    /* Body uses system sans-serif. Headings and hero use the W95F display font. */
+    font-family: "Segoe UI", Tahoma, Verdana, sans-serif;
   font-size: 14px;
   line-height: 1.45;
   min-height: 100vh;
@@ -227,24 +228,44 @@ small {
   font-size: 12px;
 }
 
-.landing-hero,
-.landing-panel {
+.landing-hero, .landing-head {
+  max-width: 900px;
   margin: 16px auto;
   padding: 18px;
+  text-align: center;
   background: var(--panel);
   border: 1px solid var(--line);
 }
 
-.landing-hero h1,
-.landing-panel h2 {
-  margin-top: 0;
+/* W95F font import (OFL). Files present in static/assets/: w95f.woff2, w95f.woff, W95F.otf */
+@font-face {
+  font-family: "W95F";
+  src: url("/static/assets/w95f.woff2") format("woff2"),
+       url("/static/assets/w95f.woff") format("woff"),
+       url("/static/assets/W95F.otf") format("opentype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
 }
 
-.landing-cta-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 12px;
+/* Apply the display font to headings and the landing hero */
+h1, h2, h3, h4, h5, h6,
+.landing-hero {
+  font-family: "W95F", "Segoe UI", Tahoma, Verdana, sans-serif;
+}
+
+/* Ensure paragraph text stays the default sans-serif even inside the hero */
+.landing-hero p {
+  font-family: "Segoe UI", Tahoma, Verdana, sans-serif;
+}
+
+/* Panels used across pages */
+.landing-panel {
+  max-width: 900px;
+  margin: 16px auto;
+  padding: 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
 }
 
 .button-link {
@@ -292,6 +313,8 @@ small {
   gap: 16px;
   align-items: start;
 }
+
+/* (Full-width hero removed; hero is a centered box with max-width.) */
 
 .getting-started-grid .landing-panel {
   margin: 0;
