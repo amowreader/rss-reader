@@ -9,6 +9,8 @@
   <nav>
     <a href="{{ url_for('landing') }}">Homepage/About</a>
     |
+    <a href="{{ url_for('sample') }}">Sample Reader</a>
+    |
     {% if g.user %}
       <a href="{{ url_for('index') }}">Reading List</a>
       |
@@ -21,6 +23,8 @@
         <button type="submit">Log out</button>
       </form>
     {% else %}
+      <a href="{{ url_for('getting_started') }}">Getting Started</a>
+      |
       <a href="{{ url_for('login') }}">Log in</a>
       |
       <a href="{{ url_for('signup') }}">Sign up</a>
