@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>RSS Reader</title>
+  <link rel="stylesheet" href="/rss-reader/static/style.css">
+</head>
+<body>
+  <nav>
+    <a href="/rss-reader/">Homepage/About</a>
+    |
+    
+      <a href="/rss-reader/login">Log in</a>
+      |
+      <a href="/rss-reader/signup">Sign up</a>
+    
+  </nav>
+  <hr>
+  
+
+<div class="feed-controls">
+  <form class="refresh-form" method="post" action="/rss-reader/refresh">
+    <button type="submit">Refresh all feeds</button>
+  </form>
+
+  <form class="feed-filter-form" method="get" action="/rss-reader/app">
+    <select name="feed_id" onchange="this.form.submit()">
+      <option value="">All feeds</option>
+      
+        <option value="1" >
+          Example Feed
+        </option>
+      
+        <option value="2" >
+          Another Feed
+        </option>
+      
+    </select>
+    <label>
+      <input type="checkbox" name="show_read" value="1" onchange="this.form.submit()" checked>
+      show read stories
+    </label>
+  </form>
+</div>
+
+<hr>
+
+
+
+<ul>
+  
+    <li class="story-item">
+      
+      <div class="story-copy">
+        <a href="https://example.com/sample-1" target="_blank">Announcing the Sample Feed</a><br>
+        &mdash; Example Feed
+        
+          · Alice
+        
+        <br>
+        <small class="story-date">Oct 13, 2026 13:15 (EDT)</small>
+        
+          <form method="post" action="/rss-reader/story/101/read">
+            <button class="mark-read-btn" type="submit">Mark read</button>
+          </form>
+        
+        <div class="story-summary">This is a short example story provided for the frozen site preview.</div>
+      </div>
+    </li>
+  
+    <li class="story-item">
+      
+      <div class="story-copy">
+        <a href="https://example.com/sample-2" target="_blank">More from the Example Feed</a><br>
+        &mdash; Another Feed
+        
+          · Bob
+        
+        <br>
+        <small class="story-date">Oct 13, 2026 13:15 (EDT)</small>
+        
+        <div class="story-summary">Another sample story to show read vs unread state in the UI.</div>
+      </div>
+    </li>
+  
+</ul>
+
+
+  <footer class="site-footer">
+    <span>&copy; 2026 Ashley Mowreader</span>
+    <span>Built with Flask and SQLite</span>
+  </footer>
+</body>
+</html>
