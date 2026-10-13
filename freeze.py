@@ -50,6 +50,12 @@ def build():
             f.write(content)
         print(f"Wrote {os.path.join(outdir, 'index.html')}")
 
+        if path:
+            alias_path = os.path.join(DEST, f"{path}.html")
+            with open(alias_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            print(f"Wrote {alias_path}")
+
 
 if __name__ == "__main__":
     build()
