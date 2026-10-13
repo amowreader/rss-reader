@@ -3,27 +3,27 @@
 <head>
   <meta charset="utf-8">
   <title>RSS Reader</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/rss-reader/static/style.css">
 </head>
 <body>
   <nav>
-    <a href="/">Homepage/About</a>
+    <a href="/rss-reader/">Homepage/About</a>
     |
     
-      <a href="/login">Log in</a>
+      <a href="/rss-reader/login">Log in</a>
       |
-      <a href="/signup">Sign up</a>
+      <a href="/rss-reader/signup">Sign up</a>
     
   </nav>
   <hr>
   
 
 <div class="feed-controls">
-  <form class="refresh-form" method="post" action="/refresh">
+  <form class="refresh-form" method="post" action="/rss-reader/refresh">
     <button type="submit">Refresh all feeds</button>
   </form>
 
-  <form class="feed-filter-form" method="get" action="/app">
+  <form class="feed-filter-form" method="get" action="/rss-reader/app">
     <select name="feed_id" onchange="this.form.submit()">
       <option value="">All feeds</option>
       
@@ -58,9 +58,9 @@
           · Alice
         
         <br>
-        <small class="story-date">Oct 13, 2026 13:09 (EDT)</small>
+        <small class="story-date">Oct 13, 2026 13:14 (EDT)</small>
         
-          <form method="post" action="/story/101/read">
+          <form method="post" action="/rss-reader/story/101/read">
             <button class="mark-read-btn" type="submit">Mark read</button>
           </form>
         
@@ -77,7 +77,7 @@
           · Bob
         
         <br>
-        <small class="story-date">Oct 13, 2026 13:09 (EDT)</small>
+        <small class="story-date">Oct 13, 2026 13:14 (EDT)</small>
         
         <div class="story-summary">Another sample story to show read vs unread state in the UI.</div>
       </div>
