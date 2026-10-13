@@ -129,8 +129,8 @@ small {
 
 .landing-hero,
 .landing-panel {
-  max-width: 760px;
-  margin: 16px auto;
+  max-width: 100%;
+  text-align: center;
   padding: 18px;
   background: var(--panel);
   border: 1px solid var(--line);

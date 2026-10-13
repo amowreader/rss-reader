@@ -1,11 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Getting Started — RSS Reader{% endblock %}
+{% block title %}Getting Started — News Brief RSS{% endblock %}
 {% block content %}
 <section class="landing-hero">
+  <section class="landing-head">
   <h1>Getting Started</h1>
   <p>
     New here? Let's get you your account set up and add your first stories.
   </p>
+  </section>
 </section>
 
 <div class="getting-started-grid">
@@ -69,6 +71,7 @@
 
   <section class="landing-panel panel-wide">
     <h2>Next step</h2>
+    <p> Ready to get reading? Go to <a href="{{ url_for('list_feeds') if g.user else url_for('login') }}">Feeds</a> to add your first feed, then head to <a href="{{ url_for('index') }}">Reading List</a> to see your stories. </p>
     <div class="landing-cta-row">
       {% if g.user %}
         <a class="button-link" href="{{ url_for('index') }}">Open reading list</a>
