@@ -28,15 +28,31 @@ body {
   align-content: center;
 }
 
-nav {
+.top-nav {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  padding: 8px 12px;
+  background: #e5f0f8;
+  border: 2px solid #cddbe7;
+  box-shadow: inset 1px 1px 0 #fffaf4, inset -1px -1px 0 #8fa3b6;
 }
 
-nav form {
+.top-nav form {
   margin: 0;
+}
+
+.top-nav a,
+.top-nav span {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.top-nav a:hover {
+  color: #4e7fae;
+  text-decoration: underline;
 }
 
 a {
