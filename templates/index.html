@@ -2,24 +2,46 @@
 {% block content %}
 
 <div class="feed-controls">
-  <form class="refresh-form" method="post" action="{{ url_for('refresh') }}">
-    <button type="submit">Refresh all feeds</button>
-  </form>
+  {% if demo_mode %}
+    <p class="demo-note">Demo mode: try the sample reader UI below. Read state is saved only in your browser.</p>
+    <form class="refresh-form" onsubmit="return false;">
+      <button type="button" data-demo-refresh>Refresh all feeds</button>
+    </form>
 
-  <form class="feed-filter-form" method="get" action="{{ url_for('index') }}">
-    <select name="feed_id" onchange="this.form.submit()">
-      <option value="">All feeds</option>
-      {% for feed in feeds %}
-        <option value="{{ feed.id }}" {% if feed.id == selected_feed_id %}selected{% endif %}>
-          {{ feed.title }}
-        </option>
-      {% endfor %}
-    </select>
-    <label>
-      <input type="checkbox" name="show_read" value="1" onchange="this.form.submit()" {% if show_read %}checked{% endif %}>
-      show read stories
-    </label>
-  </form>
+    <form class="feed-filter-form demo-disabled" onsubmit="return false;">
+      <select name="feed_id" disabled>
+        <option value="">All feeds</option>
+        {% for feed in feeds %}
+          <option value="{{ feed.id }}" {% if feed.id == selected_feed_id %}selected{% endif %}>
+            {{ feed.title }}
+          </option>
+        {% endfor %}
+      </select>
+      <label>
+        <input type="checkbox" name="show_read" value="1" disabled {% if show_read %}checked{% endif %}>
+        show read stories
+      </label>
+    </form>
+  {% else %}
+    <form class="refresh-form" method="post" action="{{ url_for('refresh') }}">
+      <button type="submit">Refresh all feeds</button>
+    </form>
+
+    <form class="feed-filter-form" method="get" action="{{ url_for('index') }}">
+      <select name="feed_id" onchange="this.form.submit()">
+        <option value="">All feeds</option>
+        {% for feed in feeds %}
+          <option value="{{ feed.id }}" {% if feed.id == selected_feed_id %}selected{% endif %}>
+            {{ feed.title }}
+          </option>
+        {% endfor %}
+      </select>
+      <label>
+        <input type="checkbox" name="show_read" value="1" onchange="this.form.submit()" {% if show_read %}checked{% endif %}>
+        show read stories
+      </label>
+    </form>
+  {% endif %}
 </div>
 
 <hr>
@@ -30,7 +52,7 @@
 
 <ul>
   {% for story in stories %}
-    <li class="story-item">
+    <li class="story-item {% if story.is_read %}is-read{% endif %}" {% if demo_mode %}data-demo-story-id="{{ story.id }}" data-initial-read="{{ 'true' if story.is_read else 'false' }}"{% endif %}>
       {% if story.image_url %}
         <img class="story-image" src="{{ story.image_url }}" alt="{{ story.title }}">
       {% endif %}
@@ -42,7 +64,11 @@
         {% endif %}
         <br>
         <small class="story-date">{{ story.published | format_date }}</small>
-        {% if not story.is_read %}
+        {% if demo_mode %}
+          <button class="mark-read-btn" type="button" data-demo-mark-read>
+            {% if story.is_read %}Mark unread{% else %}Mark read{% endif %}
+          </button>
+        {% elif not story.is_read %}
           <form method="post" action="{{ url_for('mark_read', story_id=story.id) }}">
             <button class="mark-read-btn" type="submit">Mark read</button>
           </form>
@@ -53,4 +79,70 @@
   {% endfor %}
 </ul>
 
+{% endblock %}
+
+{% block extra_scripts %}
+  {% if demo_mode %}
+    <script>
+      (() => {
+        const storageKey = 'rss-reader-demo-read-state-v1';
+        const refreshButton = document.querySelector('[data-demo-refresh]');
+        const storyItems = document.querySelectorAll('[data-demo-story-id]');
+
+        const loadState = () => {
+          try {
+            return JSON.parse(localStorage.getItem(storageKey) || '{}');
+          } catch {
+            return {};
+          }
+        };
+
+        const saveState = (state) => {
+          localStorage.setItem(storageKey, JSON.stringify(state));
+        };
+
+        const applyStoryState = (storyItem, isRead) => {
+          storyItem.classList.toggle('is-read', isRead);
+          const button = storyItem.querySelector('[data-demo-mark-read]');
+          if (button) {
+            button.textContent = isRead ? 'Mark unread' : 'Mark read';
+          }
+        };
+
+        const state = loadState();
+
+        storyItems.forEach((storyItem) => {
+          const storyId = storyItem.dataset.demoStoryId;
+          const initialRead = storyItem.dataset.initialRead === 'true';
+          const isRead = Object.prototype.hasOwnProperty.call(state, storyId)
+            ? state[storyId]
+            : initialRead;
+
+          applyStoryState(storyItem, isRead);
+
+          const button = storyItem.querySelector('[data-demo-mark-read]');
+          if (!button) {
+            return;
+          }
+
+          button.addEventListener('click', () => {
+            const nextValue = !storyItem.classList.contains('is-read');
+            state[storyId] = nextValue;
+            saveState(state);
+            applyStoryState(storyItem, nextValue);
+          });
+        });
+
+        if (refreshButton) {
+          refreshButton.addEventListener('click', () => {
+            const originalText = refreshButton.textContent;
+            refreshButton.textContent = 'Demo refreshed';
+            window.setTimeout(() => {
+              refreshButton.textContent = originalText;
+            }, 1200);
+          });
+        }
+      })();
+    </script>
+  {% endif %}
 {% endblock %}

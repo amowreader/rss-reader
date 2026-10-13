@@ -199,6 +199,7 @@ def sample():
         feeds=sample_feeds,
         show_read=True,
         selected_feed_id=None,
+        demo_mode=True,
     )
 
 

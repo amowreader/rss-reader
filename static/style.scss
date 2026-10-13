@@ -154,6 +154,16 @@ form {
   margin: 12px 0;
 }
 
+.demo-note {
+  margin: 0;
+  color: #5f7385;
+  font-size: 13px;
+}
+
+.demo-disabled {
+  opacity: 0.72;
+}
+
 input,
 select,
 button {
@@ -213,6 +223,15 @@ li {
   padding: 8px 10px;
   background: rgba(245, 250, 255, 0.88);
   border: 1px solid rgba(127, 149, 168, 0.28);
+}
+
+.story-item.is-read {
+  opacity: 0.7;
+  background: #eef4f9;
+}
+
+.story-item.is-read .story-copy > a {
+  text-decoration: line-through;
 }
 
 li a {
