@@ -30,6 +30,8 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run freeze (build static files)
+        env:
+          SITE_BASE_PATH: /rss-reader
         run: |
           python freeze.py
 
