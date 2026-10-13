@@ -115,6 +115,7 @@ body {
     inset -1px -1px 0 $win-gray-3;
 }
 
+nav,
 .top-nav {
   display: flex;
   align-items: center;
@@ -127,6 +128,8 @@ body {
     inset -1px -1px 0 $win-gray-3;
 }
 
+nav a,
+nav span,
 .top-nav a,
 .top-nav span {
   color: $win-gray-4;
@@ -134,11 +137,13 @@ body {
   font-weight: 600;
 }
 
+nav a:hover,
 .top-nav a:hover {
   color: #4e7fae;
   text-decoration: underline;
 }
 
+nav form,
 .top-nav form {
   margin: 0;
 }

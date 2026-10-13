@@ -28,6 +28,7 @@ body {
   align-content: center;
 }
 
+nav,
 .top-nav {
   display: flex;
   flex-wrap: wrap;
@@ -39,10 +40,13 @@ body {
   box-shadow: inset 1px 1px 0 #fffaf4, inset -1px -1px 0 #8fa3b6;
 }
 
+nav form,
 .top-nav form {
   margin: 0;
 }
 
+nav a,
+nav span,
 .top-nav a,
 .top-nav span {
   color: var(--text);
@@ -50,6 +54,7 @@ body {
   font-weight: 600;
 }
 
+nav a:hover,
 .top-nav a:hover {
   color: #4e7fae;
   text-decoration: underline;
