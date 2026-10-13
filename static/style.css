@@ -117,6 +117,16 @@ button:hover {
   gap: 12px;
 }
 
+.demo-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.demo-disabled {
+  opacity: 0.72;
+}
+
 ul {
   list-style: none;
   margin: 14px 0;
@@ -133,6 +143,15 @@ li {
 .story-item {
   display: flex;
   gap: 10px;
+}
+
+.story-item.is-read {
+  opacity: 0.7;
+  background: #eef4f9;
+}
+
+.story-item.is-read .story-copy > a {
+  text-decoration: line-through;
 }
 
 .story-image {

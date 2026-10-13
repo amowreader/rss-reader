@@ -23,28 +23,31 @@
   
 
 <div class="feed-controls">
-  <form class="refresh-form" method="post" action="/rss-reader/refresh">
-    <button type="submit">Refresh all feeds</button>
-  </form>
+  
+    <p class="demo-note">Demo mode: try the sample reader UI below. Read state is saved only in your browser.</p>
+    <form class="refresh-form" onsubmit="return false;">
+      <button type="button" data-demo-refresh>Refresh all feeds</button>
+    </form>
 
-  <form class="feed-filter-form" method="get" action="/rss-reader/app">
-    <select name="feed_id" onchange="this.form.submit()">
-      <option value="">All feeds</option>
-      
-        <option value="1" >
-          Example Feed
-        </option>
-      
-        <option value="2" >
-          Another Feed
-        </option>
-      
-    </select>
-    <label>
-      <input type="checkbox" name="show_read" value="1" onchange="this.form.submit()" checked>
-      show read stories
-    </label>
-  </form>
+    <form class="feed-filter-form demo-disabled" onsubmit="return false;">
+      <select name="feed_id" disabled>
+        <option value="">All feeds</option>
+        
+          <option value="1" >
+            Example Feed
+          </option>
+        
+          <option value="2" >
+            Another Feed
+          </option>
+        
+      </select>
+      <label>
+        <input type="checkbox" name="show_read" value="1" disabled checked>
+        show read stories
+      </label>
+    </form>
+  
 </div>
 
 <hr>
@@ -53,7 +56,7 @@
 
 <ul>
   
-    <li class="story-item">
+    <li class="story-item " data-demo-story-id="101" data-initial-read="false">
       
       <div class="story-copy">
         <a href="https://example.com/sample-1" target="_blank">Announcing the Sample Feed</a><br>
@@ -62,17 +65,17 @@
           · Alice
         
         <br>
-        <small class="story-date">Oct 13, 2026 13:18 (EDT)</small>
+        <small class="story-date">Oct 13, 2026 13:22 (EDT)</small>
         
-          <form method="post" action="/rss-reader/story/101/read">
-            <button class="mark-read-btn" type="submit">Mark read</button>
-          </form>
+          <button class="mark-read-btn" type="button" data-demo-mark-read>
+            Mark read
+          </button>
         
         <div class="story-summary">This is a short example story provided for the frozen site preview.</div>
       </div>
     </li>
   
-    <li class="story-item">
+    <li class="story-item is-read" data-demo-story-id="102" data-initial-read="true">
       
       <div class="story-copy">
         <a href="https://example.com/sample-2" target="_blank">More from the Example Feed</a><br>
@@ -81,7 +84,11 @@
           · Bob
         
         <br>
-        <small class="story-date">Oct 13, 2026 13:18 (EDT)</small>
+        <small class="story-date">Oct 13, 2026 13:22 (EDT)</small>
+        
+          <button class="mark-read-btn" type="button" data-demo-mark-read>
+            Mark unread
+          </button>
         
         <div class="story-summary">Another sample story to show read vs unread state in the UI.</div>
       </div>
@@ -94,5 +101,70 @@
     <span>&copy; 2026 Ashley Mowreader</span>
     <span>Built with Flask and SQLite</span>
   </footer>
+  
+  
+    <script>
+      (() => {
+        const storageKey = 'rss-reader-demo-read-state-v1';
+        const refreshButton = document.querySelector('[data-demo-refresh]');
+        const storyItems = document.querySelectorAll('[data-demo-story-id]');
+
+        const loadState = () => {
+          try {
+            return JSON.parse(localStorage.getItem(storageKey) || '{}');
+          } catch {
+            return {};
+          }
+        };
+
+        const saveState = (state) => {
+          localStorage.setItem(storageKey, JSON.stringify(state));
+        };
+
+        const applyStoryState = (storyItem, isRead) => {
+          storyItem.classList.toggle('is-read', isRead);
+          const button = storyItem.querySelector('[data-demo-mark-read]');
+          if (button) {
+            button.textContent = isRead ? 'Mark unread' : 'Mark read';
+          }
+        };
+
+        const state = loadState();
+
+        storyItems.forEach((storyItem) => {
+          const storyId = storyItem.dataset.demoStoryId;
+          const initialRead = storyItem.dataset.initialRead === 'true';
+          const isRead = Object.prototype.hasOwnProperty.call(state, storyId)
+            ? state[storyId]
+            : initialRead;
+
+          applyStoryState(storyItem, isRead);
+
+          const button = storyItem.querySelector('[data-demo-mark-read]');
+          if (!button) {
+            return;
+          }
+
+          button.addEventListener('click', () => {
+            const nextValue = !storyItem.classList.contains('is-read');
+            state[storyId] = nextValue;
+            saveState(state);
+            applyStoryState(storyItem, nextValue);
+          });
+        });
+
+        if (refreshButton) {
+          refreshButton.addEventListener('click', () => {
+            const originalText = refreshButton.textContent;
+            refreshButton.textContent = 'Demo refreshed';
+            window.setTimeout(() => {
+              refreshButton.textContent = originalText;
+            }, 1200);
+          });
+        }
+      })();
+    </script>
+  
+
 </body>
 </html>
