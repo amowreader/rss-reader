@@ -7,7 +7,11 @@ into rows" stays the same regardless of how the UI evolves.
 """
 
 import datetime
+import html
+import re
+
 import feedparser
+from dateutil import parser as date_parser
 
 
 def fetch_and_parse(url: str) -> feedparser.FeedParserDict:
@@ -31,14 +35,45 @@ def entry_guid(entry) -> str:
 
 
 def entry_published(entry) -> str:
+    """Return a normalized UTC ISO-8601 timestamp."""
     for key in ("published", "updated"):
-        if entry.get(key):
-            return entry[key]
+        value = entry.get(key)
+        if not value:
+            continue
+        try:
+            dt = date_parser.parse(value)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            else:
+                dt = dt.astimezone(datetime.timezone.utc)
+            return dt.isoformat()
+        except (ValueError, TypeError, OverflowError):
+            continue
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
 def entry_summary(entry) -> str:
-    return entry.get("summary", "") or entry.get("description", "")
+    raw_summary = entry.get("summary", "") or entry.get("description", "") or ""
+    without_tags = re.sub(r"<[^>]+>", " ", raw_summary)
+    text = html.unescape(without_tags)
+    return " ".join(text.split())
+
+
+def entry_author(entry) -> str:
+    """Best-effort author string from common RSS/Atom fields."""
+    for key in ("author", "dc_creator", "creator"):
+        value = entry.get(key)
+        if isinstance(value, str) and value.strip():
+            return " ".join(value.split())
+
+    authors = entry.get("authors") or []
+    for author in authors:
+        if isinstance(author, dict):
+            value = author.get("name") or author.get("email")
+            if isinstance(value, str) and value.strip():
+                return " ".join(value.split())
+
+    return ""
 
 
 def entry_image(entry):

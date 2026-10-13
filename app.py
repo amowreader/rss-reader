@@ -11,7 +11,9 @@ Core loop, same as the single-user version, with one addition: feeds and stories
 
 import datetime
 import os
+import re
 import sqlite3
+from zoneinfo import ZoneInfo
 from dateutil import parser as date_parser
 
 from flask import Flask, g, redirect, render_template, request, session, url_for
@@ -26,16 +28,22 @@ app = Flask(__name__)
 # invalidates existing sessions (everyone gets logged out).
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
 
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+DISPLAY_TZ = ZoneInfo("America/New_York")
+
 
 # --- filters ---------------------------------------------------------
 
 @app.template_filter("format_date")
 def format_date(date_string):
-    """Format ISO date string as 'MMM D, YYYY HH:MM (timezone)'"""
+    """Format date string in Eastern Time as 'MMM D, YYYY HH:MM (timezone)'"""
     if not date_string:
         return ""
     try:
         dt = date_parser.isoparse(date_string)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        dt = dt.astimezone(DISPLAY_TZ)
         tz_name = dt.strftime("%Z") or "UTC"
         return dt.strftime("%b %-d, %Y %H:%M") + f" ({tz_name})"
     except (ValueError, TypeError):
@@ -64,6 +72,7 @@ def init_db():
         db = get_db()
         with open("schema.sql") as f:
             db.executescript(f.read())
+        _run_schema_migrations(db)
         db.commit()
 
 
@@ -132,6 +141,105 @@ def logout():
 # --- story routes ----------------------------------------------------------
 
 @app.route("/")
+def landing():
+    return render_template(
+        "landing.html",
+        signup_count=_waitlist_signup_count(get_db()),
+        form_error=None,
+        form_success=None,
+        email_value="",
+        interest_value="",
+    )
+
+
+@app.route("/getting-started")
+def getting_started():
+    return render_template("getting_started.html")
+
+
+@app.route("/sample")
+def sample():
+    """Public sample view used for static builds — renders the main index template
+    with example feeds and stories so the frozen site shows content.
+    """
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    sample_feeds = [
+        {"id": 1, "title": "Example Feed"},
+        {"id": 2, "title": "Another Feed"},
+    ]
+
+    sample_stories = [
+        {
+            "id": 101,
+            "image_url": "",
+            "title": "Announcing the Sample Feed",
+            "link": "https://example.com/sample-1",
+            "feed_title": "Example Feed",
+            "author": "Alice",
+            "published": now,
+            "is_read": False,
+            "summary": "This is a short example story provided for the frozen site preview.",
+        },
+        {
+            "id": 102,
+            "image_url": "",
+            "title": "More from the Example Feed",
+            "link": "https://example.com/sample-2",
+            "feed_title": "Another Feed",
+            "author": "Bob",
+            "published": now,
+            "is_read": True,
+            "summary": "Another sample story to show read vs unread state in the UI.",
+        },
+    ]
+
+    return render_template(
+        "index.html",
+        stories=sample_stories,
+        feeds=sample_feeds,
+        show_read=True,
+        selected_feed_id=None,
+    )
+
+
+@app.route("/waitlist", methods=["POST"])
+def waitlist_signup():
+    db = get_db()
+    email = request.form.get("email", "").strip().lower()
+    interest = request.form.get("interest", "").strip()
+
+    if not email or not EMAIL_RE.match(email):
+        return render_template(
+            "landing.html",
+            signup_count=_waitlist_signup_count(db),
+            form_error="Please enter a valid email address.",
+            form_success=None,
+            email_value=email,
+            interest_value=interest,
+        )
+
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    try:
+        db.execute(
+            "INSERT INTO waitlist_signups (email, interest, created_at) VALUES (?, ?, ?)",
+            (email, interest, now),
+        )
+        db.commit()
+        success_message = "Thanks — you're on the list. We'll reach out soon."
+    except sqlite3.IntegrityError:
+        success_message = "You're already on the list. Thanks for the interest!"
+
+    return render_template(
+        "landing.html",
+        signup_count=_waitlist_signup_count(db),
+        form_error=None,
+        form_success=success_message,
+        email_value="",
+        interest_value="",
+    )
+
+
+@app.route("/app")
 @auth.require_login
 def index():
     db = get_db()
@@ -288,8 +396,8 @@ def _store_entries(db, feed_id, entries):
         db.execute(
             """
             INSERT OR IGNORE INTO stories
-                (feed_id, guid, title, link, published, summary, fetched_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (feed_id, guid, title, link, published, summary, author, fetched_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 feed_id,
@@ -298,12 +406,28 @@ def _store_entries(db, feed_id, entries):
                 entry.get("link", ""),
                 feeds.entry_published(entry),
                 feeds.entry_summary(entry),
+                feeds.entry_author(entry),
                 now,
             ),
         )
     db.commit()
 
 
+def _waitlist_signup_count(db):
+    row = db.execute("SELECT COUNT(*) AS count FROM waitlist_signups").fetchone()
+    return row["count"] if row else 0
+
+
+def _run_schema_migrations(db):
+    story_columns = {
+        row["name"]
+        for row in db.execute("PRAGMA table_info(stories)").fetchall()
+    }
+
+    if "author" not in story_columns:
+        db.execute("ALTER TABLE stories ADD COLUMN author TEXT")
+
+
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=int(os.environ.get("PORT", 8000)))

@@ -22,10 +22,16 @@ A small Flask-based RSS reader with user accounts, shared feeds, and per-user re
 2. Start the app:
 
    ```bash
-   python app.py
+   python3 app.py
    ```
 
-3. Open http://localhost:5000 in your browser.
+   Optional: pick a different port for this run:
+
+   ```bash
+   PORT=9000 python3 app.py
+   ```
+
+3. Open http://127.0.0.1:8000 in your browser.
 
 The app creates `rss.db` automatically on first run.
 

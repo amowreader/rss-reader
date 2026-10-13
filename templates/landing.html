@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}RSS Reader — Read less noise{% endblock %}
+{% block content %}
+<section class="landing-hero">
+  <h1>Cut through feed overload.</h1>
+  <p>
+    News Brief RSS helps you follow the sources you trust, skip the noise,
+    and keep your reading organized in one calm (and retro) inbox.
+  </p>
+  <div class="landing-cta-row">
+    {% if g.user %}
+      <a class="button-link" href="{{ url_for('index') }}">Go to your stories</a>
+    {% else %}
+      <a class="button-link" href="{{ url_for('signup') }}">Create an account</a>
+      <a class="button-link subtle" href="{{ url_for('login') }}">Log in</a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="landing-panel">
+  <h2>What is New Brief RSS?</h2>
+  <p>
+    I'm building focused reading workspace where you can follow the outlets and information you want, without getting stuck in an algorithm or lost digging through newsletters in your inbox. Now, your daily news briefing can be exactly the sources you trust, without any ads, junk or clickbait.
+  </p>
+  <ul class="landing-list">
+    <li>Subscribe once and refresh from one place.</li>
+    <li>Read stories in chronological order without algorithmic ranking.</li>
+    <li>Track what you've read so you can pick up where you left off or revisit stories later.</li>
+  </ul>
+</section>
+
+<section class="landing-panel">
+  <h2>Get early access</h2>
+  <p>
+    Leave your email and get notified as I closer to launch.
+  </p>
+
+  {% if form_error %}
+    <p class="form-error">{{ form_error }}</p>
+  {% endif %}
+  {% if form_success %}
+    <p class="form-success">{{ form_success }}</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('waitlist_signup') }}" class="waitlist-form">
+    <label for="email">Email</label>
+    <input id="email" type="email" name="email" placeholder="you@example.com" value="{{ email_value or '' }}" required>
+
+    <button type="submit">Join waitlist</button>
+  </form>
+
+  <p class="waitlist-note">{{ signup_count }} people have joined so far.</p>
+</section>
+{% endblock %}

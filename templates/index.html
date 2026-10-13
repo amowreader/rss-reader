@@ -1,29 +1,31 @@
 {% extends "base.html" %}
 {% block content %}
 
-<form method="post" action="{{ url_for('refresh') }}">
-  <button type="submit">Refresh all feeds</button>
-</form>
+<div class="feed-controls">
+  <form class="refresh-form" method="post" action="{{ url_for('refresh') }}">
+    <button type="submit">Refresh all feeds</button>
+  </form>
 
-<form method="get" action="{{ url_for('index') }}">
-  <select name="feed_id" onchange="this.form.submit()">
-    <option value="">All feeds</option>
-    {% for feed in feeds %}
-      <option value="{{ feed.id }}" {% if feed.id == selected_feed_id %}selected{% endif %}>
-        {{ feed.title }}
-      </option>
-    {% endfor %}
-  </select>
-  <label>
-    <input type="checkbox" name="show_read" value="1" onchange="this.form.submit()" {% if show_read %}checked{% endif %}>
-    show read
-  </label>
-</form>
+  <form class="feed-filter-form" method="get" action="{{ url_for('index') }}">
+    <select name="feed_id" onchange="this.form.submit()">
+      <option value="">All feeds</option>
+      {% for feed in feeds %}
+        <option value="{{ feed.id }}" {% if feed.id == selected_feed_id %}selected{% endif %}>
+          {{ feed.title }}
+        </option>
+      {% endfor %}
+    </select>
+    <label>
+      <input type="checkbox" name="show_read" value="1" onchange="this.form.submit()" {% if show_read %}checked{% endif %}>
+      show read stories
+    </label>
+  </form>
+</div>
 
 <hr>
 
 {% if not stories %}
-  <p>No stories. Add a feed on the Feeds page, then refresh.</p>
+  <p>No stories yet! Visit the Feeds page to import a feed, then come back here and refresh.</p>
 {% endif %}
 
 <ul>
@@ -34,14 +36,18 @@
       {% endif %}
       <div class="story-copy">
         <a href="{{ story.link }}" target="_blank">{{ story.title }}</a><br>
-        &mdash; {{ story.feed_title }} <br> {{ story.published | format_date }}
-        {% if not story.is_read %}
-          <form method="post" action="{{ url_for('mark_read', story_id=story.id) }}">
-            <button type="submit">Mark read</button>
-          </form>
+        &mdash; {{ story.feed_title }}
+        {% if story.author %}
+          · {{ story.author }}
         {% endif %}
         <br>
-        <small>{{ story.summary | striptags | truncate(200) }}</small>
+        <small class="story-date">{{ story.published | format_date }}</small>
+        {% if not story.is_read %}
+          <form method="post" action="{{ url_for('mark_read', story_id=story.id) }}">
+            <button class="mark-read-btn" type="submit">Mark read</button>
+          </form>
+        {% endif %}
+        <div class="story-summary">{{ story.summary | striptags | truncate(200) }}</div>
       </div>
     </li>
   {% endfor %}

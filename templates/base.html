@@ -7,12 +7,16 @@
 </head>
 <body>
   <nav>
+    <a href="{{ url_for('landing') }}">Homepage/About</a>
+    |
     {% if g.user %}
-      <a href="{{ url_for('index') }}">Stories</a>
+      <a href="{{ url_for('index') }}">Reading List</a>
       |
       <a href="{{ url_for('list_feeds') }}">Feeds</a>
       |
-      logged in as {{ g.user.username }}
+      <a href="{{ url_for('getting_started') }}">Getting Started</a>
+    |
+      You're logged in as <b>{{ g.user.username }}</b>
       <form method="post" action="{{ url_for('logout') }}">
         <button type="submit">Log out</button>
       </form>

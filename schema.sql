@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS stories (
     link TEXT,
     published TEXT,
     summary TEXT,
+    author TEXT,
     fetched_at TEXT NOT NULL,
     UNIQUE(feed_id, guid)
 );
@@ -42,4 +43,11 @@ CREATE TABLE IF NOT EXISTS read_states (
     story_id INTEGER NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
     read_at TEXT NOT NULL,
     UNIQUE(user_id, story_id)
+);
+
+CREATE TABLE IF NOT EXISTS waitlist_signups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    interest TEXT,
+    created_at TEXT NOT NULL
 );
