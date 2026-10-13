@@ -1,0 +1,312 @@
+:root {
+  --bg: #e5eef6;
+  --panel: #f4f9fc;
+  --text: #263445;
+  --muted: #5f7385;
+  --link: #4f7fb3;
+  --line: #8fa3b6;
+  --btn: #dfeaf3;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 14px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", Tahoma, Verdana, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  max-width: 900px;
+  margin: 0 auto;
+  align-content: center;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+nav form {
+  margin: 0;
+}
+
+a {
+  color: var(--link);
+}
+
+hr {
+  border: 0;
+  border-top: 2px solid var(--line);
+  margin: 12px 0;
+}
+
+input[type=text],
+input[type=password],
+input[type=email],
+select,
+textarea,
+button {
+  font: inherit;
+  color: var(--text);
+}
+
+input[type=text],
+input[type=password],
+input[type=email],
+select,
+textarea {
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 7px 9px;
+  min-height: 34px;
+}
+
+button {
+  background: var(--btn);
+  border: 1px solid var(--line);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(0.98);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 420px;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-form button {
+  align-self: flex-start;
+}
+
+.feed-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.refresh-form,
+.feed-filter-form {
+  margin: 0;
+}
+
+.feed-filter-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+ul {
+  list-style: none;
+  margin: 14px 0;
+  padding-left: 0;
+}
+
+li {
+  margin: 10px 0;
+  padding: 10px;
+  background: #f8fbff;
+  border: 1px solid #c9d9e7;
+}
+
+.story-item {
+  display: flex;
+  gap: 10px;
+}
+
+.story-image {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border: 1px solid #c9d9e7;
+  flex-shrink: 0;
+}
+
+.story-copy {
+  min-width: 0;
+}
+
+.story-copy form {
+  display: inline-flex;
+  margin-left: 8px;
+  padding-top: 4px;
+}
+
+.mark-read-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  min-height: 24px;
+}
+
+.story-date {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.story-summary {
+  margin-top: 8px;
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+small {
+  color: var(--muted);
+}
+
+.site-footer {
+  margin-top: auto;
+  padding-top: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.landing-hero,
+.landing-panel {
+  margin: 16px auto;
+  padding: 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.landing-hero h1,
+.landing-panel h2 {
+  margin-top: 0;
+}
+
+.landing-cta-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.button-link {
+  display: inline-block;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  background: var(--btn);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.button-link.subtle {
+  background: #edf4fa;
+  font-weight: 500;
+}
+
+.landing-list {
+  list-style: disc;
+  padding-left: 20px;
+}
+
+.landing-list li {
+  margin: 6px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.guide-steps {
+  margin: 10px 0;
+  padding-left: 22px;
+}
+
+.guide-steps li {
+  margin: 10px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.getting-started-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.getting-started-grid .landing-panel {
+  margin: 0;
+  height: 100%;
+}
+
+.getting-started-grid .panel-wide {
+  grid-column: 1 / -1;
+}
+
+.waitlist-form {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 50%;
+
+}
+
+.waitlist-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.form-error {
+  color: #7d2e2e;
+  font-weight: 600;
+}
+
+.form-success {
+  color: #245d39;
+  font-weight: 600;
+}
+
+.waitlist-note {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 10px;
+  }
+
+  .site-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  input[type=text],
+  input[type=password],
+  input[type=email],
+  select,
+  textarea,
+  button {
+    width: 100%;
+  }
+}

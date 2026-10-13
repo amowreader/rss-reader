@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>RSS Reader</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <nav>
+    <a href="/">Homepage/About</a>
+    |
+    
+      <a href="/login">Log in</a>
+      |
+      <a href="/signup">Sign up</a>
+    
+  </nav>
+  <hr>
+  
+
+<h1>Sign up</h1>
+
+
+
+<form class="auth-form" method="post" action="/signup">
+  <label>Username <input type="text" name="username"></label>
+  <label>Password <input type="password" name="password"></label>
+  <button type="submit">Sign up</button>
+</form>
+
+<p>Already have an account? <a href="/login">Log in</a></p>
+
+
+  <footer class="site-footer">
+    <span>&copy; 2026 Ashley Mowreader</span>
+    <span>Built with Flask and SQLite</span>
+  </footer>
+</body>
+</html>
