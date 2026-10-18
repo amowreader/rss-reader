@@ -1,0 +1,27 @@
+name: Build and Deploy to Fly
+
+# Manual dispatch workflow: run this from Actions UI after verifying migrations and staging
+on:
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-fly@v1
+        with:
+          version: latest
+
+      - name: Deploy to Fly (remote build)
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # remote-only causes Fly to build the image using Fly's builders
+          flyctl deploy --remote-only --config fly.toml

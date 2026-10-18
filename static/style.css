@@ -373,3 +373,47 @@ h1, h2, h3, h4, h5, h6,
     width: 100%;
   }
 }
+
+/* Health/status styles: used for deployment health pages and quick checks
+   (Added per deployment PRD: lightweight visual indicator for readiness) */
+.health-check {
+  max-width: 680px;
+  margin: 20px auto;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+}
+.health-check .status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--text);
+}
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 6px rgba(0,0,0,0.02) inset;
+}
+.status-up {
+  background: #28a745;
+  box-shadow: 0 0 0 6px rgba(40,167,69,0.06);
+}
+.status-down {
+  background: #dc3545;
+  box-shadow: 0 0 0 6px rgba(220,53,69,0.06);
+}
+.health-meta {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .health-check { padding: 12px; margin: 12px 8px; }
+}

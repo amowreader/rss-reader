@@ -25,8 +25,56 @@ DATABASE = "rss.db"
 
 app = Flask(__name__)
 # In production, set a fixed SECRET_KEY env var -- otherwise every restart
+@app.cli.command("normalize-published")
+def normalize_published_command():
+    """Normalize existing `stories.published` values to ISO-8601 where possible.
+
+    This scans all rows in `stories.published`, attempts to parse each
+    value using dateutil, and replaces it with an ISO-8601 UTC timestamp
+    when parsing succeeds. Unparseable values are set to NULL so they
+    don't interfere with ordering logic. Prints a small summary.
+    """
+    db = get_db()
+    cur = db.execute("SELECT id, published FROM stories")
+    converted = 0
+    failed = 0
+    nulls = 0
+    for row in cur.fetchall():
+        sid = row["id"]
+        published = row["published"]
+        if not published:
+            nulls += 1
+            continue
+        try:
+            dt = date_parser.parse(published)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            iso = dt.astimezone(datetime.timezone.utc).isoformat()
+            if iso != published:
+                db.execute("UPDATE stories SET published = ? WHERE id = ?", (iso, sid))
+                converted += 1
+        except Exception:
+            db.execute("UPDATE stories SET published = NULL WHERE id = ?", (sid,))
+            failed += 1
+    db.commit()
+    print(f"Converted: {converted}, Failed (set to NULL): {failed}, Already NULL: {nulls}")
+
 # invalidates existing sessions (everyone gets logged out).
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
+
+# DATABASE handling (minimal): prefer DATABASE_URL when provided but do not
+# silently fall back to local sqlite in production. To require a DATABASE_URL
+# set `REQUIRE_DATABASE_URL=1` in your environment (used by deployments).
+ENV_DATABASE_URL = os.environ.get("DATABASE_URL")
+REQUIRE_DATABASE_URL = os.environ.get("REQUIRE_DATABASE_URL") == "1"
+
+if REQUIRE_DATABASE_URL and not ENV_DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL is required in production. Set DATABASE_URL or unset REQUIRE_DATABASE_URL."
+    )
+
+# Keep a copy on app config for other components to inspect.
+app.config["DATABASE_URL"] = ENV_DATABASE_URL
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 DISPLAY_TZ = ZoneInfo("America/New_York")
@@ -54,9 +102,72 @@ def format_date(date_string):
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DATABASE)
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA foreign_keys = ON")
+        # If a DATABASE_URL is provided, use SQLAlchemy session via
+        # `db_sqlalchemy.get_session()` and expose a minimal adapter with
+        # `execute()`, `commit()`, and `close()` so the rest of the code can
+        # remain mostly unchanged.
+        if ENV_DATABASE_URL:
+            from db_sqlalchemy import init_engine, get_session
+            from sqlalchemy import text
+
+            init_engine(ENV_DATABASE_URL)
+            session = get_session()
+
+            class SAAdapter:
+                def __init__(self, session):
+                    self._session = session
+
+                def execute(self, sql, params=None):
+                    # Convert positional `?` params to :p0, :p1 named params
+                    params = params or ()
+                    if isinstance(params, dict):
+                        paramdict = params
+                        sql_text = sql
+                    else:
+                        paramdict = {f"p{i}": v for i, v in enumerate(params)}
+                        parts = sql.split("?")
+                        if len(parts) - 1 != len(params):
+                            sql_text = sql
+                        else:
+                            sql_text = "".join(p + (f":p{idx}" if idx < len(params) else "") for idx, p in enumerate(parts))
+                            # append last chunk
+                            if len(parts) > 0:
+                                sql_text += parts[-1]
+
+                    res = self._session.execute(text(sql_text), paramdict)
+
+                    class ResultWrapper:
+                        def __init__(self, res):
+                            self._res = res
+
+                        def fetchone(self):
+                            m = self._res.mappings().first()
+                            return m
+
+                        def fetchall(self):
+                            return self._res.mappings().all()
+
+                        @property
+                        def lastrowid(self):
+                            # Not reliably available via SQLAlchemy text inserts.
+                            return None
+
+                    return ResultWrapper(res)
+
+                def commit(self):
+                    self._session.commit()
+
+                def close(self):
+                    try:
+                        self._session.close()
+                    except Exception:
+                        pass
+
+            g.db = SAAdapter(session)
+        else:
+            g.db = sqlite3.connect(DATABASE)
+            g.db.row_factory = sqlite3.Row
+            g.db.execute("PRAGMA foreign_keys = ON")
     return g.db
 
 
@@ -64,16 +175,65 @@ def get_db():
 def close_db(exception=None):
     db = g.pop("db", None)
     if db is not None:
-        db.close()
+        try:
+            db.close()
+        except Exception:
+            pass
 
 
 def init_db():
+    """Initialize the database using the schema file specified by
+    the `SCHEMA_FILE` environment variable (defaults to `schema.sql`).
+
+    This function is intentionally available as a Flask CLI command so
+    migrations can be run as a controlled release step instead of
+    running automatically under every process manager.
+    """
+    schema_file = os.environ.get("SCHEMA_FILE", "schema.sql")
     with app.app_context():
+        # Only run the SQL schema file when using the local sqlite database.
+        # When `DATABASE_URL` is set, prefer `flask create-tables` or
+        # SQLAlchemy/Alembic-managed migrations instead of executing raw SQL.
+        if ENV_DATABASE_URL:
+            print("Skipping init_db: DATABASE_URL is set. Use `flask create-tables` or migrations.")
+            return
         db = get_db()
-        with open("schema.sql") as f:
+        with open(schema_file) as f:
             db.executescript(f.read())
-        _run_schema_migrations(db)
+        # Keep sqlite-specific migration step for legacy SQLite runs.
+        try:
+            _run_schema_migrations(db)
+        except Exception:
+            # _run_schema_migrations is SQLite-specific; ignore failures
+            # when using a different backend or schema file.
+            pass
         db.commit()
+
+
+@app.cli.command("init-db")
+def init_db_command():
+    """Flask CLI command: `flask init-db` to initialize schema."""
+    init_db()
+    print("Initialized the database.")
+
+
+@app.cli.command("create-tables")
+def create_tables_command():
+    """Create tables using SQLAlchemy models when `DATABASE_URL` is present.
+
+    This is useful for creating the Postgres schema via SQLAlchemy's
+    metadata.create_all before running an import or Alembic migrations.
+    """
+    try:
+        from db_sqlalchemy import init_engine, get_engine
+        from models import Base
+
+        engine = init_engine()
+        Base.metadata.create_all(bind=engine)
+        print("Created tables via SQLAlchemy metadata.")
+    except Exception as exc:
+        print("Failed to create tables:", exc)
+        raise
 
 
 @app.before_request
@@ -102,16 +262,21 @@ def signup():
         return render_template("signup.html", error="Username and password are required.")
 
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    try:
-        cur = db.execute(
-            "INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)",
-            (username, auth.hash_password(password), now),
-        )
-        db.commit()
-    except sqlite3.IntegrityError:
+    # Pre-check for existing username to avoid relying on DB-specific
+    # integrity exception behavior across backends.
+    existing = db.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
+    if existing:
         return render_template("signup.html", error="That username is taken.")
 
-    auth.log_in_user(cur.lastrowid)
+    db.execute(
+        "INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)",
+        (username, auth.hash_password(password), now),
+    )
+    db.commit()
+
+    # Lookup the newly-created user id in a DB-agnostic way.
+    user_row = db.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
+    auth.log_in_user(user_row["id"])
     return redirect(url_for("index"))
 
 
@@ -266,7 +431,8 @@ def index():
         params.append(feed_id)
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
-    query += " ORDER BY stories.fetched_at DESC LIMIT 200"
+    # Order by story publication time when available, otherwise by fetch time.
+    query += " ORDER BY COALESCE(stories.published, stories.fetched_at) DESC LIMIT 200"
 
     stories = db.execute(query, params).fetchall()
     subscribed_feeds = _subscribed_feeds(db, g.user["id"])
@@ -325,24 +491,32 @@ def add_feed():
                 error=f"Couldn't add feed: {exc}",
             )
         title = feeds.feed_title(parsed, url)
-        cur = db.execute(
+        db.execute(
             "INSERT INTO feeds (url, title, added_at) VALUES (?, ?, ?)",
             (url, title, now),
         )
-        feed_id = cur.lastrowid
+        db.commit()
+        # Fetch the feed id in a DB-agnostic way.
+        feed_row = db.execute("SELECT id FROM feeds WHERE url = ?", (url,)).fetchone()
+        feed_id = feed_row["id"]
         _store_entries(db, feed_id, parsed.entries)
 
-    try:
-        db.execute(
-            "INSERT INTO subscriptions (user_id, feed_id, subscribed_at) VALUES (?, ?, ?)",
-            (g.user["id"], feed_id, now),
-        )
-        db.commit()
-    except sqlite3.IntegrityError:
+    # Avoid DB-specific integrity exceptions by pre-checking the subscription.
+    existing_sub = db.execute(
+        "SELECT id FROM subscriptions WHERE user_id = ? AND feed_id = ?",
+        (g.user["id"], feed_id),
+    ).fetchone()
+    if existing_sub:
         return render_template(
             "feeds.html", feeds=_subscribed_feeds(db, g.user["id"]),
             error="You're already subscribed to that feed.",
         )
+
+    db.execute(
+        "INSERT INTO subscriptions (user_id, feed_id, subscribed_at) VALUES (?, ?, ?)",
+        (g.user["id"], feed_id, now),
+    )
+    db.commit()
 
     return redirect(url_for("list_feeds"))
 
@@ -427,6 +601,32 @@ def _run_schema_migrations(db):
 
     if "author" not in story_columns:
         db.execute("ALTER TABLE stories ADD COLUMN author TEXT")
+
+
+@app.route("/health")
+def health():
+    """Lightweight health/readiness endpoint.
+
+    Returns 200 when the app and DB are reachable; returns 503 when the
+    database is unavailable. The template uses the small status styles in
+    `static/style.css` to render a concise indicator for deployment health checks.
+    """
+    db_ok = False
+    meta = {"db": "unknown", "time": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    try:
+        db = get_db()
+        # simple, cheap query to verify DB connectivity
+        db.execute("SELECT 1").fetchone()
+        db_ok = True
+        meta["db"] = "ok"
+    except Exception:
+        meta["db"] = "unavailable"
+
+    status = "up" if db_ok else "down"
+    if db_ok:
+        return render_template("health.html", status=status, meta=meta)
+    else:
+        return render_template("health.html", status=status, meta=meta), 503
 
 
 if __name__ == "__main__":

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Health{% endblock %}
+
+{% block content %}
+<div class="health-check" role="status" aria-live="polite">
+  <div class="status">
+    <div class="status-dot {{ 'status-up' if status == 'up' else 'status-down' }}" aria-hidden="true"></div>
+    <div>{{ 'Service OK' if status == 'up' else 'Service Unavailable' }}</div>
+  </div>
+  <div class="health-meta">Database: {{ meta.db }} &nbsp; • &nbsp; Time: {{ meta.time }}</div>
+</div>
+{% endblock %}

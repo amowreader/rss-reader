@@ -35,7 +35,13 @@ def entry_guid(entry) -> str:
 
 
 def entry_published(entry) -> str:
-    """Return a normalized UTC ISO-8601 timestamp."""
+    """Return a normalized UTC ISO-8601 timestamp.
+
+    If both `published` and `updated` are available, prefer the later
+    (newest) timestamp so that updated stories sort correctly by their
+    most-recent content time.
+    """
+    times = []
     for key in ("published", "updated"):
         value = entry.get(key)
         if not value:
@@ -46,10 +52,15 @@ def entry_published(entry) -> str:
                 dt = dt.replace(tzinfo=datetime.timezone.utc)
             else:
                 dt = dt.astimezone(datetime.timezone.utc)
-            return dt.isoformat()
+            times.append(dt)
         except (ValueError, TypeError, OverflowError):
             continue
-    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    if not times:
+        return None
+
+    latest = max(times)
+    return latest.isoformat()
 
 
 def entry_summary(entry) -> str:

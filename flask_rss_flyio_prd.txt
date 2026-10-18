@@ -1,0 +1,642 @@
+PRODUCT REQUIREMENTS DOCUMENT
+Flask + SQLite RSS Aggregator: Docker, Fly.io, Scale-to-Zero
+Version: 1.0
+Date: 2026-10-17
+Status: Draft — assumptions and open decisions are identified below.
+
+======================================================================
+1. EXECUTIVE SUMMARY
+======================================================================
+
+Deploy the existing multi-user, server-rendered Flask RSS aggregator to
+Fly.io using Docker, durable PostgreSQL, and web Machine auto-stop /
+auto-start. Preserve current behavior and data. Establish a reliable
+path toward background feed ingestion without overengineering the first
+release.
+
+The app shares feed definitions and stories globally, while subscriptions
+and read/unread state are per user. Existing functionality includes
+username/password signup, login and logout, session cookies, feed
+management, RSS/Atom parsing, story deduplication, refresh, a landing
+page, waitlist signups, and a sample/demo route.
+
+Recommended architecture:
+- Dockerized Flask web application served by Gunicorn.
+- Managed PostgreSQL for durable production data.
+- Fly.io web Machine configured to stop when idle and start on requests.
+- Feed ingestion initially preserved where necessary, then moved to a
+  separate worker / durable job mechanism if background scheduling is
+  required.
+- Platform secrets, health checks, logs, backups, and documented recovery.
+
+======================================================================
+2. GOALS
+======================================================================
+
+G1. Run the app from a reproducible production Docker image.
+G2. Deploy the web tier to Fly.io with scale-to-zero behavior.
+G3. Preserve existing product behavior and data relationships.
+G4. Store all production data durably outside the container filesystem.
+G5. Use managed PostgreSQL and versioned schema migrations.
+G6. Keep Flask session signing stable across restarts and releases.
+G7. Make feed fetching bounded, observable, and safe to retry.
+G8. Define an explicit strategy for scheduled feed refreshes independent
+    of web Machine uptime, if periodic refresh is required.
+G9. Provide health checks, logging, backup/restore procedures, and
+    deployment/rollback documentation.
+G10. Keep the initial system simple and cost-conscious for roughly a
+     dozen users and a few requests per hour.
+
+======================================================================
+3. NON-GOALS FOR THE INITIAL RELEASE
+======================================================================
+
+- Kubernetes or multi-region deployment.
+- A frontend rewrite or public API redesign.
+- High availability with multiple always-on web replicas.
+- A mandatory Redis deployment before a real need is established.
+- Advanced analytics or recommendation features.
+- Guaranteed zero-downtime database migrations unless later required.
+
+======================================================================
+4. CONFIRMED REQUIREMENTS
+======================================================================
+
+Application behavior:
+- Multi-user RSS aggregator.
+- Shared global feeds and stories.
+- Per-user subscriptions and read/unread state.
+- Username/password signup, login, logout using Flask session cookies.
+- Server-rendered HTML and form POSTs.
+- Public landing page, waitlist signup, sample/demo route.
+- Authenticated /app and /feeds pages and relevant actions.
+- Feed fetching/parsing via feeds.fetch_and_parse().
+- Story normalization includes title, GUID, publication time, summary,
+  author, and image.
+- Stories deduplicate via UNIQUE(feed_id, guid).
+- Refresh currently runs synchronously and request-driven.
+- Initial feed-add failures are surfaced to the user; refresh failures
+  are skipped so other feeds can continue.
+
+Persistent data:
+- Users, username, password_hash, created_at.
+- Shared feeds and feed metadata.
+- Per-user subscriptions.
+- Stories and story history.
+- Per-user read_states.
+- Waitlist signups and contact information.
+- Stable Flask SECRET_KEY.
+
+Ephemeral data:
+- Parsed feed objects and request-local variables.
+- Temporary network responses and disposable cache/files.
+- Logs unless retained by platform or external service.
+- Demo/sample data that is not actual user data.
+
+Workload and platform:
+- Expected usage: personal project, roughly a dozen users, a few requests
+  per hour.
+- Fly.io deployment and web scale-to-zero desired.
+- Cold-start delay is acceptable.
+- Public server-rendered web app; authenticated UI/actions are protected.
+- Docker, environment-based configuration, migration tooling, and
+  operational checks are desired.
+
+======================================================================
+5. ASSUMPTIONS AND OPEN DECISIONS
+======================================================================
+
+Assumptions for planning:
+- Managed PostgreSQL is preferred over production SQLite because the
+  stated long-term plan includes separate workers and potential
+  horizontal scaling.
+- One web Machine is sufficient for the initial workload.
+- Best-effort availability is acceptable initially.
+- A modest infrastructure budget is preferred, but no budget is set.
+- The app can be adapted to PostgreSQL without a complete rewrite.
+
+Open decisions:
+- Does RSS refresh need to run periodically when no user is active?
+- What refresh interval should apply, if any?
+- What is the monthly infrastructure budget?
+- Which PostgreSQL provider / Fly-compatible offering and region should
+  be used?
+- Must existing SQLite data be migrated immediately, or is this a new
+  production launch?
+- What are acceptable recovery-point and recovery-time objectives?
+- Which CI/CD provider will be used?
+- Are external error tracking and metrics needed in the first release?
+- Is Redis acceptable, or should a PostgreSQL-backed job mechanism be
+  preferred?
+- What is the deadline and exact first-release scope?
+
+Do not treat these assumptions as confirmed user requirements. Resolve
+the high-impact open decisions before production cutover.
+
+======================================================================
+6. TARGET ARCHITECTURE
+======================================================================
+
+Browser
+  -> Fly.io HTTPS routing / Machine auto-start
+  -> Flask web container running Gunicorn
+  -> Managed PostgreSQL
+
+Later, if asynchronous or periodic ingestion is required:
+Scheduler / refresh trigger
+  -> Durable job queue or PostgreSQL-backed job mechanism
+  -> Separate ingestion worker
+  -> Managed PostgreSQL
+
+Web Machine:
+- One Machine initially.
+- Auto-stop / auto-start configured according to current Fly.io support
+  and chosen app configuration.
+- No reliance on the container's local filesystem for durable data.
+
+Database:
+- Production database is PostgreSQL.
+- DATABASE_URL is required in production.
+- Do not silently fall back to local rss.db in production.
+- Use migrations and automated backups.
+- Check provider pricing, networking, backup policy, and connection limits.
+
+Worker / scheduling:
+- A stopped web Machine cannot execute scheduled refresh work.
+- If feeds must refresh while nobody is using the app, use an independent
+  scheduler or scheduled trigger capable of enqueueing work or waking a
+  worker.
+- A continuously running worker may add cost.
+- Keep worker design out of the first release only if refresh semantics
+  allow it.
+
+======================================================================
+7. FUNCTIONAL REQUIREMENTS
+======================================================================
+
+FR-1: Preserve existing app
+- Landing page and waitlist work.
+- Sample/demo page continues to work.
+- Signup, login, logout work.
+- Authenticated /app and /feeds pages work.
+- Adding/removing subscriptions works.
+- Marking stories read works.
+- Refresh continues to fetch and show stories.
+- Initial deployment should not redesign product flows.
+
+FR-2: Preserve data semantics
+- Usernames are unique.
+- Feed identity is unique according to a defined URL normalization policy.
+- Stories are unique by (feed_id, guid).
+- Subscriptions are unique by (user_id, feed_id).
+- Read states are unique by (user_id, story_id).
+- Foreign keys and deletion behavior are deliberate.
+- Add indexes for story listing, subscription lookup, and read-state joins.
+- Unsubscribing one user must not delete shared feeds/stories needed by
+  other users.
+- Define behavior for stories with missing GUIDs.
+
+FR-3: PostgreSQL and migrations
+- Use DATABASE_URL for production.
+- Version schema changes in migration files.
+- Recommended tooling: SQLAlchemy + Alembic if compatible with the
+  current code. If current access uses sqlite3 directly, plan the
+  conversion deliberately and avoid scattering dialect-specific SQL.
+- Migration command is a controlled release step, not run independently
+  by every web worker.
+- Preserve existing IDs and relationships where practical.
+- Preserve password hashes; do not unnecessarily rehash passwords.
+- Migration failures must be visible and fail deployment.
+- Rehearse import from SQLite and verify row counts, constraints,
+  relationships, and representative records.
+- Do not silently use a repository-root rss.db in production.
+
+FR-4: RSS ingestion reliability
+- Extract fetching/parsing into a reusable service independent of Flask
+  route handlers when preparing background processing.
+- Enforce connection timeout, total timeout, and response-size limits.
+- Handle invalid feeds and malformed entries.
+- Normalize RSS and Atom entries consistently.
+- Define a stable fallback identity when GUID is missing.
+- Use conflict-safe inserts / unique constraints for deduplication.
+- Update fetch metadata, including last attempt and last success.
+- Use ETag and Last-Modified validators when available.
+- One feed failure must not prevent processing other feeds.
+- Retry transient failures with bounded backoff.
+- Avoid network requests while holding database transactions open.
+- Avoid duplicate concurrent jobs for the same feed.
+- Validate user-submitted feed URLs and redirects to mitigate SSRF:
+  reject unsafe schemes and block loopback/private/link-local targets;
+  revalidate redirects and apply outbound network controls where feasible.
+
+FR-5: Authentication and sessions
+- Retain secure password hashing.
+- SECRET_KEY is generated securely and supplied via platform secrets.
+- SECRET_KEY remains stable across ordinary deploys and restarts.
+- Production cookies use Secure, HttpOnly, and an appropriate SameSite
+  policy.
+- HTTPS is used in production.
+- Logout invalidates the current session.
+- Protect state-changing browser forms against CSRF.
+- Apply sensible rate limits to login, signup, waitlist, and feed-add
+  endpoints where practical.
+- Never log passwords, session cookies, or secrets.
+
+FR-6: Deployment and recovery
+- Build a reproducible Docker image.
+- Run as a non-root user where practical.
+- Secrets are not baked into the image or committed to version control.
+- Provide lightweight liveness and appropriate readiness checks.
+- Log to stdout/stderr in a structured, inspectable format.
+- Backups are automated and restoration is tested.
+- Document deployment, rollback, migration failure, and recovery steps.
+- Image rollback must not be assumed to reverse database migrations.
+
+======================================================================
+8. NON-FUNCTIONAL REQUIREMENTS / INITIAL TARGETS
+======================================================================
+
+These are proposed targets and must be reviewed after baseline testing.
+
+- Workload: roughly 12 users, a few requests per hour.
+- Web topology: one Machine initially.
+- Scale-to-zero: web Machine stops when idle and starts for requests.
+- Cold start: acceptable; measure actual behavior after deployment.
+- Data durability: managed persistent database and automated backups.
+- Request and feed-fetch timeouts: explicit and bounded.
+- Deduplication: no duplicate stories for the same feed and stable GUID.
+- Security: HTTPS, stable secret, secure password hashes, CSRF protection.
+- Deployments: repeatable image, versioned migrations, health checks.
+- Observability: logs and visible deployment/database errors.
+- Initial availability: best-effort; no multi-region HA commitment.
+
+Provisional recovery targets for discussion:
+- Recovery point objective (maximum data loss): 24 hours.
+- Recovery time objective: one business day.
+These are assumptions, not approved service guarantees. Backups must be
+restored in a test to prove the procedure.
+
+======================================================================
+9. PHASED IMPLEMENTATION PLAN
+======================================================================
+
+PHASE 0 — Audit and baseline (estimate: 0.5–1 day)
+Tasks:
+- Inspect repository, schema.sql, routes, config, tests, and data access.
+- Find all SQLite-specific SQL and direct sqlite3 usage.
+- Locate the source rss.db and determine whether it contains production data.
+- Inventory environment variables and secrets.
+- Add smoke tests for auth, subscriptions, refresh, deduplication, read
+  state, and waitlist.
+- Decide data migration and cutover strategy.
+Deliverables:
+- Architecture decision record.
+- Migration inventory.
+- Baseline tests.
+Exit criteria:
+- Data model and current behavior are sufficiently understood to avoid
+  accidental data loss.
+
+PHASE 1 — Dockerize current app (estimate: 0.5–1 day)
+Tasks:
+- Add Dockerfile and .dockerignore.
+- Pin dependencies / create a reproducible dependency lock.
+- Run via Gunicorn or another production WSGI server, not Flask dev server.
+- Add non-root runtime user where practical.
+- Configure port, timeouts, logging, and health endpoint.
+- Keep local SQLite available for development if useful, but prohibit
+  production fallback to local rss.db.
+- Document local Docker build/run.
+Deliverable:
+- Production container that runs the existing app locally.
+Exit criteria:
+- Container builds and starts; health check, login, feed listing, and
+  basic refresh pass.
+
+PHASE 2 — PostgreSQL and migrations (estimate: 1–3 days)
+Tasks:
+- Add PostgreSQL connectivity and DATABASE_URL configuration.
+- Create initial Alembic migration or equivalent versioned migrations.
+- Convert SQLite-specific queries and types.
+- Preserve constraints, foreign keys, indexes, and ownership semantics.
+- Add a one-time SQLite import script.
+- Verify IDs, password hashes, row counts, and relationships.
+- Test migration failures and backup/restore.
+- Configure production credentials via platform secrets.
+Deliverable:
+- PostgreSQL-compatible application with versioned migrations and a
+  rehearsed import procedure.
+Exit criteria:
+- Integration tests pass against PostgreSQL; test import preserves data
+  and constraints.
+
+PHASE 3 — Fly.io deployment and scale-to-zero (estimate: 0.5–1.5 days)
+Tasks:
+- Create Fly app and configure image build.
+- Configure internal port, HTTPS, health checks, and startup behavior.
+- Set SECRET_KEY, DATABASE_URL, and other secrets with Fly secrets or
+  an appropriate secret manager.
+- Configure migrations as a release command.
+- Configure auto-stop / auto-start and zero minimum running web Machines
+  where supported by the selected configuration.
+- Deploy staging and verify database connectivity and session persistence.
+- Test Machine stop and wake.
+- Set up logs, backups, and rollback steps.
+Deliverable:
+- Live Dockerized app using durable PostgreSQL.
+Exit criteria:
+- Public pages and authentication work, data survives restart/redeploy,
+  and an incoming request wakes the app.
+
+PHASE 4 — Background RSS ingestion (estimate: 1–3 days)
+Do this in the first release only if periodic or asynchronous refresh is
+a requirement; otherwise schedule it after the initial deployment.
+Tasks:
+- Extract fetching into a reusable ingestion service.
+- Add durable queue or PostgreSQL-backed job mechanism.
+- Add separate worker process / Machine.
+- Implement retry limits, backoff, per-feed locks/leases, and stale-job
+  recovery.
+- Add ETag/Last-Modified support and fetch metadata.
+- Decide on-demand vs periodic refresh behavior and interval.
+- Ensure scheduling works when web Machine is stopped.
+- Return job status/result instead of blocking all network work in web
+  requests where appropriate.
+Deliverable:
+- Ingestion independent of web request latency and web uptime.
+Exit criteria:
+- Worker restart and duplicate delivery do not duplicate stories, lose
+  committed data, or permanently strand jobs.
+
+PHASE 5 — Hardening and release (estimate: 1–2 days)
+Tasks:
+- Test CSRF, authorization, and feed URL validation.
+- Validate indexes and query behavior.
+- Restore a backup into a test database.
+- Add error tracking and basic alerts if appropriate.
+- Verify logs contain no secrets.
+- Run end-to-end acceptance tests against deployment.
+- Document deploy, logs, recovery, and migration limitations.
+Deliverable:
+- Release candidate with operational documentation.
+Exit criteria:
+- Critical acceptance criteria pass and remaining risks are documented
+  and accepted.
+
+Overall estimate:
+- First Docker + PostgreSQL + Fly deployment: roughly 5–8 engineering days.
+- With background ingestion and hardening: roughly 7–12 engineering days.
+These are planning estimates; migration complexity and platform setup may
+change them.
+
+======================================================================
+10. ARCHITECTURAL RISKS AND MITIGATIONS
+======================================================================
+
+R1 — Data loss / incorrect migration (HIGH)
+Risk: SQLite/PostgreSQL differences or incomplete imports can lose
+relationships, IDs, or constraints.
+Mitigation: verified backup, rehearsal import, row-count and relationship
+checks, controlled cutover/write freeze, rollback window.
+
+R2 — Feed fetching blocks web requests (HIGH)
+Risk: slow or hostile feeds consume request workers and increase latency.
+Mitigation: timeouts, response limits, bounded concurrency, background
+worker in Phase 4.
+
+R3 — Scale-to-zero conflicts with periodic refresh (HIGH)
+Risk: stopped web Machine cannot execute refresh jobs.
+Mitigation: independent scheduler/trigger and explicit scheduling
+requirements; account for worker cost.
+
+R4 — Database cost / availability (MEDIUM)
+Risk: managed DB may remain billable while web is stopped; DB outage
+can prevent readiness.
+Mitigation: compare current provider pricing and backup/networking terms;
+test DB failure behavior.
+
+R5 — Duplicate or overlapping jobs (MEDIUM)
+Risk: multiple users refresh a shared feed simultaneously.
+Mitigation: job deduplication, database lock/lease with expiry, unique
+constraints and conflict-safe inserts.
+
+R6 — Session invalidation or secret leakage (MEDIUM)
+Risk: secret rotation invalidates signed sessions; image may leak secrets.
+Mitigation: platform secrets, stable key, no secrets in image/logs, planned
+rotation procedure.
+
+R7 — SSRF through feed URLs (MEDIUM)
+Risk: submitted URLs or redirects target private/internal services.
+Mitigation: allow only expected schemes, validate DNS results and
+redirects, block private/loopback/link-local targets, outbound controls.
+
+======================================================================
+11. ACCEPTANCE CRITERIA
+======================================================================
+
+APPLICATION
+- Public landing, sample, and waitlist pages render.
+- Signup, login, logout, and protected routes work.
+- Two users can subscribe to the same feed independently.
+- Unsubscribing one user does not delete shared content still needed by
+  another user.
+- Read state for one user does not affect another user.
+- Repeated refreshes do not duplicate stories for the same feed/GUID.
+
+DATABASE
+- Production uses PostgreSQL and fails clearly if DATABASE_URL is absent
+  or invalid.
+- Required data survives Machine stop/start, redeploy, and container
+  replacement.
+- Migrations run in a controlled release step and are versioned.
+- Rehearsed SQLite import preserves users, password hashes, feeds,
+  subscriptions, stories, read states, and waitlist records.
+- Foreign keys, uniqueness constraints, and indexes are verified.
+
+DOCKER / FLY.IO
+- Image builds reproducibly and uses a production WSGI server.
+- Secrets are not committed, embedded in image, or printed in logs.
+- Health checks provide meaningful status.
+- Web Machine stops when idle and starts on a request under the selected
+  configuration.
+- Cold-start latency is measured and within the agreed tolerance.
+- Failed migration/deployment is visible and recovery procedure works.
+
+RSS / SECURITY
+- Feed requests have bounded timeouts and response-size limits.
+- A feed failure does not prevent other feeds from processing.
+- Concurrent refreshes do not create duplicate stories.
+- Feed URLs and redirects are validated against unsafe destinations.
+- Authenticated routes enforce authorization and state-changing forms
+  use CSRF protection.
+- Backups can be restored successfully and recovery is documented.
+
+======================================================================
+12. DEPLOYMENT CHECKLIST
+======================================================================
+
+A. Repository preparation
+[ ] Confirm source of truth for SQLite database.
+[ ] Add Dockerfile, .dockerignore, dependency lock, health endpoint,
+    and structured logging.
+[ ] Add PostgreSQL integration and migration tests.
+[ ] Verify local development does not require production secrets.
+[ ] Scan source and build inputs for committed secrets.
+
+B. Database preparation
+[ ] Create PostgreSQL database.
+[ ] Configure DATABASE_URL and verify connectivity.
+[ ] Review initial migration.
+[ ] Apply migrations to a clean database.
+[ ] Back up source SQLite database.
+[ ] Rehearse import in non-production database.
+[ ] Compare row counts, IDs, constraints, relationships, sample records.
+[ ] Verify destination backup and restore.
+
+C. Fly.io configuration
+[ ] Create app and select region.
+[ ] Configure internal port and HTTPS.
+[ ] Configure SECRET_KEY, DATABASE_URL, and other secrets.
+[ ] Configure production WSGI command, worker count, and timeout.
+[ ] Configure health checks and startup behavior.
+[ ] Configure auto-stop / auto-start and minimum running Machines.
+[ ] Verify DB networking and connection limits.
+[ ] Verify backups, logs, and alerting if configured.
+
+D. Release and cutover
+[ ] Deploy staging.
+[ ] Run migrations via release process.
+[ ] Run acceptance and smoke tests.
+[ ] Plan maintenance window/write freeze for final import if source is live.
+[ ] Perform final import and verify database.
+[ ] Deploy production image and verify release version.
+[ ] Test signup/login, feeds, stories, subscriptions, read state, waitlist.
+[ ] Verify production does not read/write repository-local rss.db.
+
+E. Scale-to-zero and recovery
+[ ] Verify web Machine stops after configured idle period.
+[ ] Send request and verify app wakes.
+[ ] Measure cold-start and normal request latency.
+[ ] Verify sessions across Machine stops/restarts.
+[ ] Verify ingestion scheduling independently if required.
+[ ] Test transient feed failure and duplicate refresh.
+[ ] Restore backup into test database.
+[ ] Exercise rollback and document migration limitations.
+
+F. Go-live
+[ ] All critical acceptance criteria pass.
+[ ] No unresolved data-loss, authentication, or persistence issues.
+[ ] Operational documentation is committed.
+[ ] Costs, recovery objectives, and known limitations are recorded.
+[ ] Owner accepts remaining availability/cold-start trade-offs.
+
+======================================================================
+13. CI/CD AND REPOSITORY SUGGESTION
+======================================================================
+
+Possible structure, to be adapted to the existing codebase:
+
+rss-app/
+  app/
+    auth.py
+    feeds.py
+    routes/
+    templates/
+    static/
+    db.py
+    services/
+      ingestion.py
+  migrations/
+  tests/
+    unit/
+    integration/
+    smoke/
+  scripts/
+    import_sqlite.py
+  Dockerfile
+  .dockerignore
+  fly.toml
+  requirements.txt
+  alembic.ini
+  README.md
+
+This is a proposal, not a requirement to restructure the entire app.
+The exact structure depends on the existing repository.
+
+Suggested CI pipeline:
+1. Formatting, linting, and unit tests.
+2. Integration tests against PostgreSQL.
+3. Docker image build.
+4. Dependency/image vulnerability scan.
+5. Staging deployment.
+6. Migrations and smoke tests.
+7. Production deployment after the chosen approval gate.
+
+Database migration safety:
+- Treat schema rollback separately from image rollback.
+- Prefer additive, backward-compatible migrations.
+- Defer destructive changes until the previous release is no longer needed.
+
+======================================================================
+14. COST STRATEGY
+======================================================================
+
+- One auto-stopping web Machine.
+- Small managed PostgreSQL instance.
+- No Redis until the queue/scheduling requirement justifies it.
+- Platform logs initially; add external monitoring only as needed.
+- Automated backups, with costs and retention checked before selection.
+- Avoid multiple web replicas and always-on workers until justified.
+
+Do not commit to a monthly price until the provider, region, storage,
+backup policy, and refresh schedule are chosen. Database costs may
+continue while the web Machine is stopped.
+
+======================================================================
+15. RECOMMENDED DECISIONS
+======================================================================
+
+1. Dockerize first and prove the current app runs under Gunicorn.
+2. Move production data to PostgreSQL before production cutover.
+3. Preserve global feed/story sharing and per-user subscription/read state.
+4. Keep web scale-to-zero independent of ingestion scheduling.
+5. Use database uniqueness constraints as the final defense against
+   duplicate stories.
+6. Treat migration and recovery as deliverables, not afterthoughts.
+7. Start with one web Machine and minimal infrastructure.
+8. Add a queue/worker only when asynchronous or scheduled ingestion
+   requirements are clear.
+9. Do not allow production to silently fall back to local SQLite.
+10. Validate current Fly.io capabilities and provider pricing before
+    finalizing configuration.
+
+======================================================================
+16. OPEN QUESTIONS TO RESOLVE
+======================================================================
+
+Q1. When should RSS feeds refresh?
+    - Only on user request.
+    - Periodically even when nobody is using the app.
+    - Both.
+
+Q2. What is the monthly infrastructure budget?
+    - As close to zero as possible.
+    - Under $15/month.
+    - $15–$40/month.
+    - Flexible if reliability improves.
+
+Q3. What is the first-release scope?
+    - Get online quickly; background jobs later.
+    - Production-ready including background ingestion.
+    - Migrate existing production data immediately.
+    - Simplest safe approach; still exploring.
+
+Q4. Which PostgreSQL provider and region should be used?
+Q5. Is there existing production data that must be migrated?
+Q6. What are acceptable data-loss and recovery-time objectives?
+Q7. What CI/CD provider and monitoring services are preferred?
+
+Until answered, keep these decisions explicit and do not invent user
+preferences.
+
+END OF DOCUMENT

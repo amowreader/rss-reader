@@ -62,3 +62,17 @@ The app creates `rss.db` automatically on first run.
 - `_store_entries()` in `app.py` for tagging, filtering, or dedupe changes
 - `feeds.py` for parsing tweaks or feed normalization
 - `templates/` and `static/` for UI improvements
+
+## Recent changes (automated edits)
+
+The following concise summary lists edits made to this repository during recent maintenance and deployment preparation.
+
+- Removed unneeded development artifacts: `node_modules/`, `package.json`, `package-lock.json`, `__pycache__/`, `.venv-1/`, `docs/`, `static/style.css.map`, and `shared.js` to shrink the repo.
+- Added a lightweight health/readiness endpoint (`/health`) and template (`templates/health.html`) plus supporting styles in `static/style.css` for deployment checks.
+- Dockerized the app: added `Dockerfile` and `.dockerignore`, and updated `requirements.txt` to include `gunicorn` for production WSGI.
+- Added a Fly.io scaffold `fly.toml` and a GitHub Actions workflow `.github/workflows/fly-deploy.yml` for remote builds and deploys (requires `secrets.FLY_API_TOKEN`).
+- Made DB handling explicit: `app.py` now reads `DATABASE_URL` and supports `REQUIRE_DATABASE_URL=1` to fail-fast in production; fallback to local `rss.db` remains for development.
+- Fixed story ordering so the reading list orders by publication time (falling back to fetch time): updated SQL in `app.py`.
+- Improved feed timestamp logic: `feeds.entry_published` now prefers the latest of `published` and `updated`, and returns `NULL` when unavailable so entries without timestamps don't appear as newest.
+
+If you want these changes committed to Git with a dedicated commit message, I can create that commit for you, or run the Docker build and test the container locally next.
