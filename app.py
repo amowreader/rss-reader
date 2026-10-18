@@ -331,30 +331,55 @@ def sample():
     sample_feeds = [
         {"id": 1, "title": "Example Feed"},
         {"id": 2, "title": "Another Feed"},
+        {"id": 3, "title": "Tech News"},
     ]
 
     sample_stories = [
         {
             "id": 101,
             "image_url": "",
-            "title": "Announcing the Sample Feed",
+            "title": "HEADLINE: Announcing the Sample Feed",
             "link": "https://example.com/sample-1",
-            "feed_title": "Example Feed",
-            "author": "Alice",
+            "feed_title": "News Organization 1",
+            "author": "Author Byline",
             "published": now,
             "is_read": False,
-            "summary": "This is a short example story provided for the frozen site preview.",
+            "summary": "I made this fake tag up so you can see how the feed pulls in a first sentence.",
         },
+    
         {
             "id": 102,
             "image_url": "",
-            "title": "More from the Example Feed",
+            "title": "HEADLINE: More from the Example Feed",
             "link": "https://example.com/sample-2",
-            "feed_title": "Another Feed",
-            "author": "Bob",
+            "feed_title": "News Organization 2",
+            "author": "Author Byline 2",
             "published": now,
             "is_read": True,
-            "summary": "Another sample story to show read vs unread state in the UI.",
+            "summary": "This is a pretend story I made up so you can see how my tool works.",
+        },
+        {
+            "id": 103,
+            "image_url": "",
+            "title": "Tech Highlights",
+            "link": "https://example.com/sample-3",
+            "feed_title": "Tech News",
+            "author": "Carol",
+            "published": now,
+            "is_read": False,
+            "summary": "A short tech roundup included so the demo dropdown shows three feeds.",
+        },
+
+        {
+             "id": 104,
+             "image_url": "",
+              "title": "HEADLINE: More News on the Example Feed",
+            "link": "https://example.com/sample-1",
+            "feed_title": "News Organization 3",
+            "author": "Author Byline 3",
+            "published": now,
+            "is_read": False,
+            "summary": "This is a short example story so you can see how the site works.",
         },
     ]
 
